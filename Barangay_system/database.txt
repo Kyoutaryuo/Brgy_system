@@ -1,0 +1,145 @@
+-- Create database
+CREATE DATABASE IF NOT EXISTS barangay_system;
+USE barangay_system;
+
+-- Users table
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(100),
+    address TEXT,
+    contact_number VARCHAR(20),
+    role ENUM('user', 'staff', 'admin') DEFAULT 'user',
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Document types table
+CREATE TABLE documents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    document_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    requirements TEXT,
+    processing_days INT DEFAULT 3,
+    fee DECIMAL(10,2) DEFAULT 0.00,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Requests table
+CREATE TABLE requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    document_id INT NOT NULL,
+    purpose TEXT,
+    schedule_date DATE,
+    schedule_time TIME,
+    status ENUM('pending', 'processing', 'approved', 'rejected', 'claimed') DEFAULT 'pending',
+    remarks TEXT,
+    processed_by INT,
+    processed_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (document_id) REFERENCES documents(id),
+    FOREIGN KEY (processed_by) REFERENCES users(id)
+);
+
+-- Request requirements/uploaded files table
+CREATE TABLE request_files (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    request_id INT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE
+);
+
+-- Activity logs table
+CREATE TABLE activity_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    action VARCHAR(255) NOT NULL,
+    details TEXT,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Insert default admin account (password: admin123)
+INSERT INTO users (full_name, username, password, role, status) 
+VALUES ('System Administrator', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 'active');
+
+-- Insert default staff account (password: staff123)
+INSERT INTO users (full_name, username, password, role, status) 
+VALUES ('Staff Member', 'staff', '$2y$10$Dow5elN8O/5FJ.3BxGDSaeuxrhfb.CWdCVdnFRxPbKdBu5MQKQN6a', 'staff', 'active');
+
+-- Insert sample document types
+INSERT INTO documents (document_name, description, requirements, processing_days, fee) VALUES
+('Barangay Clearance', 'General clearance certificate from the barangay', 'Valid ID,Community Tax Certificate (Cedula),2x2 ID Photo', 1, 50.00),
+('Certificate of Residency', 'Proof of residence in the barangay', 'Valid ID,Proof of Address (Utility Bill)', 1, 30.00),
+('Certificate of Indigency', 'Certificate for indigent residents', 'Valid ID,Request Letter stating purpose', 1, 0.00),
+('Business Clearance', 'Clearance for business permit application', 'Valid ID,DTI Registration,Lease Contract or Land Title,Barangay Clearance', 3, 200.00),
+('Barangay ID', 'Official barangay identification card', 'Valid ID,2x2 ID Photo (2 pieces),Proof of Address', 5, 100.00);
+
+
+gagamitin lang after malagay nung nasa taas
+ALTER TABLE requests 
+MODIFY processed_by INT NULL;
+
+ALTER TABLE requests
+DROP FOREIGN KEY requests_ibfk_3;
+
+ALTER TABLE requests
+ADD CONSTRAINT fk_requests_processed_by
+FOREIGN KEY (processed_by)
+REFERENCES users(id)
+ON DELETE SET NULL
+ON UPDATE CASCADE;
+
+
+-- =============================================
+-- ARCHIVE TABLES (add these after initial setup)
+-- =============================================
+
+-- Archive for deleted users
+CREATE TABLE IF NOT EXISTS deleted_users_archive (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    original_user_id INT NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100),
+    address TEXT,
+    contact_number VARCHAR(20),
+    role ENUM('user', 'staff', 'admin') NOT NULL,
+    user_status ENUM('active', 'inactive') NOT NULL,
+    user_created_at TIMESTAMP NULL,
+    deleted_by_id INT NOT NULL,
+    deleted_by_name VARCHAR(100) NOT NULL,
+    deleted_by_role ENUM('user', 'staff', 'admin') NOT NULL,
+    deletion_reason TEXT,
+    deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ip_address VARCHAR(45),
+    FOREIGN KEY (deleted_by_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Archive for deleted document types
+CREATE TABLE IF NOT EXISTS deleted_documents_archive (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    original_document_id INT NOT NULL,
+    document_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    requirements TEXT,
+    processing_days INT,
+    fee DECIMAL(10,2),
+    document_status ENUM('active', 'inactive') NOT NULL,
+    document_created_at TIMESTAMP NULL,
+    deleted_by_id INT NOT NULL,
+    deleted_by_name VARCHAR(100) NOT NULL,
+    deleted_by_role ENUM('user', 'staff', 'admin') NOT NULL,
+    deletion_reason TEXT,
+    deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ip_address VARCHAR(45),
+    FOREIGN KEY (deleted_by_id) REFERENCES users(id) ON DELETE CASCADE
+);
